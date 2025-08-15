@@ -28,7 +28,7 @@ libheadervfs.dylib: Mach-O 64-bit dynamically linked shared library x86_64
 ```bash
 sqlcipher
 
-.load /path/to/headervfs.so
+.load /path/to/libheadervfs.dylib
 
 .open file:/path/to/your.db?mode=ro&vfs=headervfs
 

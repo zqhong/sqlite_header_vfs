@@ -24,7 +24,7 @@ typedef struct HeaderFile {
 
 static int headerClose(sqlite3_file *pFile) {
     HeaderFile *p = (HeaderFile *) pFile;
-    int rc = p->pRealFile->pMethods->xClose(p->pRealFile);
+    const int rc = p->pRealFile->pMethods->xClose(p->pRealFile);
     sqlite3_free(p->pRealFile);
     return rc;
 }
@@ -53,7 +53,7 @@ static int headerWrite(
     int iAmt,
     sqlite3_int64 iOfst
 ) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xWrite(p->pRealFile, zBuf, iAmt, iOfst + HEADER_SIZE);
 }
 
@@ -62,7 +62,7 @@ static int headerWrite(
 ** 截断操作在 size + HEADER_SIZE 的大小处执行。
 */
 static int headerTruncate(sqlite3_file *pFile, sqlite_int64 size) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xTruncate(p->pRealFile, size + HEADER_SIZE);
 }
 
@@ -80,9 +80,9 @@ static int headerSync(sqlite3_file *pFile, int flags) {
 ** 报告的大小是物理大小减去头部大小。
 */
 static int headerFileSize(sqlite3_file *pFile, sqlite_int64 *pSize) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     sqlite3_int64 realSize;
-    int rc = p->pRealFile->pMethods->xFileSize(p->pRealFile, &realSize);
+    const int rc = p->pRealFile->pMethods->xFileSize(p->pRealFile, &realSize);
     if (rc == SQLITE_OK) {
         *pSize = (realSize > HEADER_SIZE) ? (realSize - HEADER_SIZE) : 0;
     }
@@ -137,17 +137,17 @@ static int headerShmMap(
 }
 
 static int headerShmLock(sqlite3_file *pFile, int offset, int n, int flags) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xShmLock(p->pRealFile, offset, n, flags);
 }
 
 static void headerShmBarrier(sqlite3_file *pFile) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     p->pRealFile->pMethods->xShmBarrier(p->pRealFile);
 }
 
 static int headerShmUnmap(sqlite3_file *pFile, int deleteFlag) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xShmUnmap(p->pRealFile, deleteFlag);
 }
 
@@ -190,9 +190,8 @@ static int headerOpen(
         0 /* xUnfetch */
     };
 
-    int rc;
     HeaderFile *p = (HeaderFile *) pFile;
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
 
     p->pRealFile = sqlite3_malloc(pRealVfs->szOsFile);
     if (!p->pRealFile) {
@@ -201,7 +200,7 @@ static int headerOpen(
     memset(p->pRealFile, 0, pRealVfs->szOsFile);
 
     /* 使用底层 VFS 打开文件 */
-    rc = pRealVfs->xOpen(pRealVfs, zName, p->pRealFile, flags, pOutFlags);
+    int rc = pRealVfs->xOpen(pRealVfs, zName, p->pRealFile, flags, pOutFlags);
 
     if (rc == SQLITE_OK) {
         /* 关键改动：区分主数据库文件和其他文件。
@@ -239,62 +238,62 @@ static int headerOpen(
 ** pVfs->pAppData 字段保存着指向真实 VFS 的指针。
 */
 static int headerDelete(sqlite3_vfs *pVfs, const char *zPath, int dirSync) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     return pRealVfs->xDelete(pRealVfs, zPath, dirSync);
 }
 
 static int headerAccess(sqlite3_vfs *pVfs, const char *zPath, int flags, int *pResOut) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     return pRealVfs->xAccess(pRealVfs, zPath, flags, pResOut);
 }
 
 static int headerFullPathname(sqlite3_vfs *pVfs, const char *zPath, int nPathOut, char *zPathOut) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     return pRealVfs->xFullPathname(pRealVfs, zPath, nPathOut, zPathOut);
 }
 
 static void *headerDlOpen(sqlite3_vfs *pVfs, const char *zPath) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     return pRealVfs->xDlOpen(pRealVfs, zPath);
 }
 
 static void headerDlError(sqlite3_vfs *pVfs, int nByte, char *zErrMsg) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     pRealVfs->xDlError(pRealVfs, nByte, zErrMsg);
 }
 
 static void (*headerDlSym(sqlite3_vfs *pVfs, void *pH, const char *zSym))(void) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     return pRealVfs->xDlSym(pRealVfs, pH, zSym);
 }
 
 static void headerDlClose(sqlite3_vfs *pVfs, void *pHandle) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     pRealVfs->xDlClose(pRealVfs, pHandle);
 }
 
 static int headerRandomness(sqlite3_vfs *pVfs, int nByte, char *zByte) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     return pRealVfs->xRandomness(pRealVfs, nByte, zByte);
 }
 
 static int headerSleep(sqlite3_vfs *pVfs, int nMicro) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     return pRealVfs->xSleep(pRealVfs, nMicro);
 }
 
 static int headerCurrentTime(sqlite3_vfs *pVfs, double *pTime) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     return pRealVfs->xCurrentTime(pRealVfs, pTime);
 }
 
 static int headerGetLastError(sqlite3_vfs *pVfs, int n, char *s) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     return pRealVfs->xGetLastError(pRealVfs, n, s);
 }
 
 static int headerCurrentTimeInt64(sqlite3_vfs *pVfs, sqlite3_int64 *pTime) {
-    sqlite3_vfs *pRealVfs = (sqlite3_vfs *) pVfs->pAppData;
+    sqlite3_vfs *pRealVfs = pVfs->pAppData;
     return pRealVfs->xCurrentTimeInt64(pRealVfs, pTime);
 }
 
@@ -318,12 +317,14 @@ int sqlite3_headervfs_init(
     char **pzErrMsg,
     const sqlite3_api_routines *pApi
 ) {
+    (void)db;
+    (void)pzErrMsg;
+
     int rc = SQLITE_OK;
-    sqlite3_vfs *pDefaultVfs;
 
     SQLITE_EXTENSION_INIT2(pApi);
 
-    pDefaultVfs = sqlite3_vfs_find(0);
+    sqlite3_vfs *pDefaultVfs = sqlite3_vfs_find(0);
     if (pDefaultVfs == 0) {
         return SQLITE_ERROR;
     }
