@@ -38,3 +38,11 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
             -Wpedantic
     )
 endif()
+
+# ----------------------------------------------------------------------------
+# 添加测试
+# ----------------------------------------------------------------------------
+
+enable_testing()
+
+add_test(NAME BasicShellTest COMMAND bash ${CMAKE_SOURCE_DIR}/tests/basic_test.sh)
