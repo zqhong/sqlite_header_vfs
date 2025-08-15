@@ -8,12 +8,10 @@ SQLITE_EXTENSION_INIT1
 // 在每个数据库主文件的开头要跳过的头部大小
 #define HEADER_SIZE 1024
 
-/*
-** VFS 的 sqlite3_file 对象
-*/
+// VFS 的 sqlite3_file 对象
 typedef struct HeaderFile {
-    sqlite3_file base; /* 基类。必须是第一个成员。 */
-    sqlite3_file *pRealFile; /* 来自底层 VFS 的真实文件句柄 */
+    sqlite3_file base;
+    sqlite3_file *pRealFile;
 } HeaderFile;
 
 
@@ -24,8 +22,14 @@ typedef struct HeaderFile {
 
 static int headerClose(sqlite3_file *pFile) {
     HeaderFile *p = (HeaderFile *) pFile;
-    const int rc = p->pRealFile->pMethods->xClose(p->pRealFile);
-    sqlite3_free(p->pRealFile);
+    int rc = SQLITE_OK;
+    if (p->pRealFile) {
+        if (p->pRealFile->pMethods && p->pRealFile->pMethods->xClose) {
+            rc = p->pRealFile->pMethods->xClose(p->pRealFile);
+        }
+        sqlite3_free(p->pRealFile);
+        p->pRealFile = NULL;
+    }
     return rc;
 }
 
@@ -39,7 +43,7 @@ static int headerRead(
     int iAmt,
     sqlite3_int64 iOfst
 ) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xRead(p->pRealFile, zBuf, iAmt, iOfst + HEADER_SIZE);
 }
 
@@ -71,7 +75,7 @@ static int headerTruncate(sqlite3_file *pFile, sqlite_int64 size) {
 ** 这是一个到底层 VFS 的简单传递。
 */
 static int headerSync(sqlite3_file *pFile, int flags) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xSync(p->pRealFile, flags);
 }
 
@@ -93,32 +97,32 @@ static int headerFileSize(sqlite3_file *pFile, sqlite_int64 *pSize) {
 ** 以下都是简单的传递方法。
 */
 static int headerLock(sqlite3_file *pFile, int eLock) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xLock(p->pRealFile, eLock);
 }
 
 static int headerUnlock(sqlite3_file *pFile, int eLock) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xUnlock(p->pRealFile, eLock);
 }
 
 static int headerCheckReservedLock(sqlite3_file *pFile, int *pResOut) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xCheckReservedLock(p->pRealFile, pResOut);
 }
 
 static int headerFileControl(sqlite3_file *pFile, int op, void *pArg) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xFileControl(p->pRealFile, op, pArg);
 }
 
 static int headerSectorSize(sqlite3_file *pFile) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xSectorSize(p->pRealFile);
 }
 
 static int headerDeviceCharacteristics(sqlite3_file *pFile) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xDeviceCharacteristics(p->pRealFile);
 }
 
@@ -132,7 +136,7 @@ static int headerShmMap(
     int bExtend,
     void volatile **pp
 ) {
-    HeaderFile *p = (HeaderFile *) pFile;
+    const HeaderFile *p = (HeaderFile *) pFile;
     return p->pRealFile->pMethods->xShmMap(p->pRealFile, iPg, pgsz, bExtend, pp);
 }
 
@@ -203,13 +207,14 @@ static int headerOpen(
     int rc = pRealVfs->xOpen(pRealVfs, zName, p->pRealFile, flags, pOutFlags);
 
     if (rc == SQLITE_OK) {
-        /* 关键改动：区分主数据库文件和其他文件。
-        ** 头部偏移逻辑只应应用于主数据库文件。
-        ** 日志、WAL 和临时文件应被透明处理。
+        /*
+         * 关键改动：
+         * 区分主数据库文件和其他文件。
+         * 头部偏移逻辑只应应用于主数据库文件，日志、WAL 和临时文件应被透明处理。
         */
-        if (flags & SQLITE_OPEN_MAIN_DB) {
+        if ((flags & SQLITE_OPEN_MAIN_DB) != 0) {
             p->base.pMethods = &header_io_methods;
-            if (flags & SQLITE_OPEN_CREATE) {
+            if ((flags & SQLITE_OPEN_CREATE) != 0) {
                 sqlite3_int64 currentSize;
                 if (p->pRealFile->pMethods->xFileSize(p->pRealFile, &currentSize) == SQLITE_OK
                     && currentSize == 0
@@ -223,7 +228,7 @@ static int headerOpen(
     }
 
     if (rc != SQLITE_OK) {
-        if (p->pRealFile->pMethods) {
+        if (p->pRealFile->pMethods && p->pRealFile->pMethods->xClose) {
             p->pRealFile->pMethods->xClose(p->pRealFile);
         }
         sqlite3_free(p->pRealFile);
@@ -317,8 +322,8 @@ int sqlite3_headervfs_init(
     char **pzErrMsg,
     const sqlite3_api_routines *pApi
 ) {
-    (void)db;
-    (void)pzErrMsg;
+    (void) db;
+    (void) pzErrMsg;
 
     int rc = SQLITE_OK;
 
