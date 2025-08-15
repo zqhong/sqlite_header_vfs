@@ -185,13 +185,21 @@ static int headerOpen(
         headerFileControl,
         headerSectorSize,
         headerDeviceCharacteristics,
-        /* V2/V3 WAL 支持方法 */
+        /* WAL 支持方法 */
         headerShmMap,
         headerShmLock,
         headerShmBarrier,
         headerShmUnmap,
-        0, /* xFetch */
-        0 /* xUnfetch */
+        /**
+         * xFetch 和 xUnfetch 的作用：
+         * 尝试直接获取一个指向数据库文件某一页（Page）的内存指针，以避免 read() 系统调用和内存拷贝。通常用于实现内存映射 I/O（mmap）
+         *
+         * 没有实现 xFetch 和 xUnfetch 的原因：
+         * 1、对性能的影响不大
+         * 2、实现这两个方法，过于麻烦
+         */
+        0,
+        0
     };
 
     HeaderFile *p = (HeaderFile *) pFile;
