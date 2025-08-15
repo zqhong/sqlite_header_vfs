@@ -1,9 +1,6 @@
 #include "sqlite3ext.h"
 SQLITE_EXTENSION_INIT1
-
-#include <assert.h>
 #include <string.h>
-#include <stdlib.h>
 
 // 在每个数据库主文件的开头要跳过的头部大小
 #define HEADER_SIZE 1024
