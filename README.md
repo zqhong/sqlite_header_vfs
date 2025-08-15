@@ -9,6 +9,18 @@ sqlite 的 vfs 扩展，在读写数据库的情况下，忽略前 1024 个字�
 * macOS Sequoia 15.5 x86_64
 * SQLCipher 4.6.0 community
 
+## 编译
+
+```bash
+cd build
+
+cmake ..
+
+make
+
+ll headervfs.so
+```
+
 ## 使用
 
 ```bash
