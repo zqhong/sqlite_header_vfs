@@ -18,7 +18,9 @@ cmake ..
 
 make
 
-ll headervfs.so
+## macOS 系统。如果是 Linux，则是 libheadervfs.so
+file libheadervfs.dylib                                                                                             Py 3.11 
+libheadervfs.dylib: Mach-O 64-bit dynamically linked shared library x86_64
 ```
 
 ## 使用

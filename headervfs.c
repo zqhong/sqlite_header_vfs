@@ -168,7 +168,7 @@ static int headerOpen(
 ) {
     /* VFS 的自定义 I/O 方法。它包含 WAL 支持。 */
     static const sqlite3_io_methods header_io_methods = {
-        3, /* iVersion */
+        3, /* iVersion 3， SQLite 3.7.6（2011-04-12）开始支持 */
         headerClose,
         headerRead,
         headerWrite,
